@@ -5,15 +5,22 @@ sys.path.append("../")
 import cv2
 import numpy as np
 
-import face_detection_utilities as fdu
+import webcam.face_detection_utilities as fdu
 
 import model.myVGG as vgg
+import dlib
+import colorlover as cl
+
+colors = cl.to_numeric(cl.scales['12']['qual']['Set3'])
+
+detector = dlib.get_frontal_face_detector()
 
 windowsName = 'Preview Screen'
 
 parser = argparse.ArgumentParser(description='A live emotion recognition from webcam')
 parser.add_argument('-testImage', help=('Given the path of testing image, the program will predict the result of the image.'
 "This function is used to test if the model works well."))
+parser.add_argument('--mode', default='cascade', choices=['cascade', 'dlib'])
 
 args = parser.parse_args()
 FACE_SHAPE = (48, 48)
@@ -24,31 +31,37 @@ model = vgg.VGG_16('my_model_weights_83.h5')
 emo     = ['Angry', 'Fear', 'Happy',
            'Sad', 'Surprise', 'Neutral']
 
-def refreshFrame(frame, faceCoordinates):
-    if faceCoordinates is not None:
-        fdu.drawFace(frame, faceCoordinates)
+
+def detect_emotion(frame, bb, out, color):
+    face_img = fdu.preprocess(frame, bb, face_shape=FACE_SHAPE)
+    input_img = np.reshape(face_img, (1, 1) + face_img.shape)
+    result = model.predict(input_img)[0]
+    index = np.argmax(result)
+    emotion = emo[index]
+    confidence = max(result)
+    cv2.rectangle(
+        np.asarray(out), (bb[0], bb[1]), (bb[2], bb[3]), color,
+        thickness=2
+    )
+    font = cv2.QT_FONT_NORMAL
+    cv2.putText(out, emotion, (bb[0], bb[1]), font, 2, color, 2, cv2.LINE_AA)
+
+
+def refresh_frame(frame, bounding_boxes):
+    for bb in bounding_boxes:
+        fdu.drawFace(frame, bb)
     cv2.imshow(windowsName, frame)
 
 
-def showScreenAndDectect(capture):
-    while (True):
+def show_screen_and_detect(capture):
+    while True:
         flag, frame = capture.read()
-        faceCoordinates = fdu.getFaceCoordinates(frame)
-        refreshFrame(frame, faceCoordinates)
-        
-        if faceCoordinates is not None:
-            face_img = fdu.preprocess(frame, faceCoordinates, face_shape=FACE_SHAPE)
-            #cv2.imshow(windowsName, face_img)
+        output = np.copy(frame)
+        bounding_boxes = fdu.get_bounding_boxes(frame, mode=args.mode)
+        for i, bb in enumerate(bounding_boxes):
+            detect_emotion(frame, bb, output, colors[i % len(colors)])
+        cv2.imshow(windowsName, output)
 
-            input_img = np.expand_dims(face_img, axis=0)
-            input_img = np.expand_dims(input_img, axis=0)
-
-            result = model.predict(input_img)[0]
-            index = np.argmax(result)
-            print (emo[index], 'prob:', max(result))
-            # print(face_img.shape)
-            # emotion = class_label[result_index]
-            # print(emotion)
 
 def getCameraStreaming():
     capture = cv2.VideoCapture(0)
@@ -83,7 +96,7 @@ def main():
         cv2.namedWindow(windowsName, cv2.WND_PROP_FULLSCREEN)
         cv2.setWindowProperty(windowsName, cv2.WND_PROP_FULLSCREEN, cv2.WND_PROP_FULLSCREEN)
     
-    showScreenAndDectect(capture)
+    show_screen_and_detect(capture)
 
 if __name__ == '__main__':
     main()
