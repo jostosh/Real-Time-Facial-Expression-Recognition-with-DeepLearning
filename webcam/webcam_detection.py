@@ -48,7 +48,7 @@ def detect_emotion(frame, bb, out, color):
         thickness=2
     )
     font = cv2.QT_FONT_NORMAL
-    cv2.putText(out, emotion, (bb[0], bb[1]), font, 2, color, 2, cv2.LINE_AA)
+    cv2.putText(out, emotion + " {}%".format(int(confidence * 100)), (bb[0], bb[1]), font, 1, color, 2, cv2.LINE_AA)
 
 
 def refresh_frame(frame, bounding_boxes):
@@ -61,10 +61,13 @@ def show_screen_and_detect(capture):
     while True:
         flag, frame = capture.read()
         output = np.copy(frame)
-        bounding_boxes = fdu.get_bounding_boxes(frame, mode=args.mode)
-        for i, bb in enumerate(bounding_boxes):
-            detect_emotion(frame, bb, output, colors[i % len(colors)])
-        cv2.imshow(windowsName, output)
+        try:
+            bounding_boxes = fdu.get_bounding_boxes(frame, mode=args.mode)
+            for i, bb in enumerate(bounding_boxes):
+                detect_emotion(frame, bb, output, colors[i % len(colors)])
+            cv2.imshow(windowsName, output)
+        except cv2.error as e:
+            print(e)
 
 
 def getCameraStreaming():
