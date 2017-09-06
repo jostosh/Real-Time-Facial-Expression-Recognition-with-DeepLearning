@@ -28,13 +28,24 @@ def rect_to_bb(rect):
     # take a bounding predicted by dlib and convert it
     # to the format (x, y, w, h) as we would normally do
     # with OpenCV
-    x = rect.left() * 2
-    y = rect.top() * 2
-    w = rect.right() * 2#- x
-    h = rect.bottom() * 2#- y
+
+    x = rect.left()
+    y = rect.top()
+    w = rect.right() #- x
+    h = rect.bottom()  #- y
+
+    fac = 20
+
+    x -= w // fac
+    y -= h // fac
+
+    y -= h // (fac // 2)
+
+    h = h + h // (fac // 2)
+    w = w + w // (fac // 2)
 
     # return a tuple of (x, y, w, h)
-    return (x, y, w, h)
+    return (x * 2, y * 2, w * 2, h * 2)
 
 
 def get_bounding_boxes(image, mode='cascade'):
