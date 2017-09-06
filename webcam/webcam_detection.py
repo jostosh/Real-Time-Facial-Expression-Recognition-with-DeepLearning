@@ -8,6 +8,7 @@ import numpy as np
 import webcam.face_detection_utilities as fdu
 
 import model.myVGG as vgg
+from model.models import bde_model
 import dlib
 import colorlover as cl
 
@@ -21,20 +22,23 @@ parser = argparse.ArgumentParser(description='A live emotion recognition from we
 parser.add_argument('-testImage', help=('Given the path of testing image, the program will predict the result of the image.'
 "This function is used to test if the model works well."))
 parser.add_argument('--mode', default='cascade', choices=['cascade', 'dlib'])
+parser.add_argument('--weights_path', default='../class_weights.h5')
+parser.add_argument('--model', default='bde', choices=['bde', 'vgg'])
 
 args = parser.parse_args()
 FACE_SHAPE = (48, 48)
 
-model = vgg.VGG_16('my_model_weights_83.h5')
-#model = vgg.VGG_16()
-
-emo     = ['Angry', 'Fear', 'Happy',
-           'Sad', 'Surprise', 'Neutral']
+if args.model == 'vgg':
+    model = vgg.VGG_16(args.weights_path)
+else:
+    model = bde_model((48, 48, 1), weights_path=args.weights_path)
+emo = ['Angry', 'Disgust', 'Fear', 'Happy',
+       'Sad', 'Surprise', 'Neutral']
 
 
 def detect_emotion(frame, bb, out, color):
     face_img = fdu.preprocess(frame, bb, face_shape=FACE_SHAPE)
-    input_img = np.reshape(face_img, (1, 1) + face_img.shape)
+    input_img = np.reshape(face_img, (1,) + face_img.shape + (1,))
     result = model.predict(input_img)[0]
     index = np.argmax(result)
     emotion = emo[index]
