@@ -3,7 +3,13 @@ import numpy as np
 from collections import OrderedDict
 import dlib
 
+def nothing(x):
+    pass
+
+
+
 detector = dlib.get_frontal_face_detector()
+
 
 CASCADE_PATH = "haarcascade_frontalface_default.xml"
 
@@ -24,31 +30,34 @@ FACIAL_LANDMARKS_IDXS = OrderedDict([
 ])
 
 
-def rect_to_bb(rect):
+def rect_to_bb(rect, fac, yoffset):
     # take a bounding predicted by dlib and convert it
     # to the format (x, y, w, h) as we would normally do
     # with OpenCV
 
     x = rect.left()
     y = rect.top()
-    w = rect.right() #- x
-    h = rect.bottom()  #- y
+    x2 = rect.right() #- x
+    y2 = rect.bottom()  #- y
 
-    fac = 20
+    w = x2 - x
+    h = y2 - y
 
-    x -= w // fac
-    y -= h // fac
+    wnew = w * fac
+    hnew = h * fac
 
-    y -= h // (fac // 2)
+    y -= hnew * yoffset
+    x -= (wnew - w) / 2
+    y -= (hnew - h) / 2
 
-    h = h + h // (fac // 2)
-    w = w + w // (fac // 2)
+    y2 = y + hnew
+    x2 = x + wnew
 
     # return a tuple of (x, y, w, h)
-    return (x * 2, y * 2, w * 2, h * 2)
+    return (int(x * 2), int(y * 2), int(x2 * 2), int(y2 * 2))
 
 
-def get_bounding_boxes(image, mode='cascade'):
+def get_bounding_boxes(image, mode='cascade', fac=20, yoffset=1.0):
 
     if mode == 'cascade':
         cascade = cv2.CascadeClassifier(CASCADE_PATH)
@@ -70,7 +79,7 @@ def get_bounding_boxes(image, mode='cascade'):
     h, w = image.shape[:2]
     subim = cv2.resize(image, (w // 2, h // 2))
     rectangles = detector(subim, 1)
-    return [rect_to_bb(r) for r in rectangles]
+    return [rect_to_bb(r, fac, yoffset) for r in rectangles]
 
 
 def drawFace(img, faceCoordinates):
@@ -78,19 +87,7 @@ def drawFace(img, faceCoordinates):
     (faceCoordinates[2], faceCoordinates[3]), REC_COLOR, thickness=2)
 
 def crop_face(img, faceCoordinates):
-    '''
-    extend_len_x =  (256 - (faceCoordinates[3] - faceCoordinates[1]))/2
-    extend_len_y =  (256 - (faceCoordinates[0] - faceCoordinates[2]))/2
-    img_size = img.shape
-    if (faceCoordinates[1] - extend_len_x) >= 0 :
-        faceCoordinates[1] -= extend_len_x
-    if (faceCoordinates[3] + extend_len_x) < img_size[0]:
-        faceCoordinates[3] += extend_len_x
-    if (faceCoordinates[0] - extend_len_y) >= 0 :
-        faceCoordinates[0] -= extend_len_y
-    if (faceCoordinates[2] + extend_len_y) < img_size[1]:
-        faceCoordinates[2] += extend_len_y
-    '''
+
     return img[faceCoordinates[1]:faceCoordinates[3], faceCoordinates[0]:faceCoordinates[2]]
 
 def preprocess(img, faceCoordinates, face_shape=(48, 48)):

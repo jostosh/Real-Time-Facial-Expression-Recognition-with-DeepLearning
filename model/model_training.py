@@ -8,7 +8,7 @@ from keras.callbacks import LambdaCallback, EarlyStopping, TerminateOnNaN, Tenso
 import feature_utility as fu
 import myVGG
 import pickle
-from model.models import bde_model
+from model.models import bde_model, bde_adience
 from keras.utils.np_utils import to_categorical
 from keras.preprocessing.image import ImageDataGenerator
 import keras
@@ -19,8 +19,12 @@ parser = argparse.ArgumentParser(description=("Model training process."))
 parser.add_argument('--weights_path', default='my_model_weights.h5')
 parser.add_argument('--test', dest='test', action='store_true')
 parser.add_argument('--class_weights', dest='class_weights', action='store_true')
-parser.add_argument('--lr', default=0.0005)
-parser.add_argument('--model', default='bde', choices=['bde', 'vgg'])
+parser.add_argument('--lr', default=0.0005, type=float)
+parser.add_argument('--model', default='bde', choices=['bde', 'vgg', 'adience'])
+parser.add_argument('--data', default='preprocessed.p')
+parser.add_argument('--epochs', default=500, type=int)
+parser.add_argument('--batch_size', default=128, type=int)
+parser.add_argument('--num_classes', default=7, type=int)
 
 
 args = parser.parse_args()
@@ -35,28 +39,42 @@ class_weights_default = {
     6: 1.756148
 }
 
+def get_model(num_classes):
+    if args.model == 'adience':
+        return bde_adience((227, 227, 3), num_classes=num_classes)
+    if args.model == 'vgg':
+        return vgg.VGG_16(args.weights_path)
+    return bde_model((48, 48, 1), args.lr)
+
+
 
 
 def main():
+
     if args.model == 'bde':
-        model = bde_model((48, 48, 1), lr=args.lr) #myVGG.VGG_16()
         shape = (48, 48, 1)
+    elif args.model == 'adience':
+        shape = (227, 227, 3)
+    batch_size = args.batch_size
+    epochs = args.epochs
+
+    X_train, y_train, X_test, y_test = pickle.load(
+        open('/home/demo/anchormen/emotion-rec/data/{}'.format(args.data), 'rb')
+    )
+
+    if len(y_train.shape) == 2:
+        num_classes = y_train.shape[1]
     else:
-        shape = (1, 48, 48)
-        model = myVGG.VGG_16()
-    batch_size = 128
-    epochs = 500
-    num_classes = len(class_weights_default)
-
-    X_train, y_train, X_test, y_test = pickle.load(open('/home/demo/anchormen/emotion-rec/data/preprocessed.p', 'rb'))
-
-
+        num_classes = args.num_classes
 
     X_train = np.reshape(X_train, (X_train.shape[0],) + shape) / 255.
     X_test = np.reshape(X_test, (X_test.shape[0],) + shape) / 255.
 
     y_train = to_categorical(y_train, num_classes)
     y_test = to_categorical(y_test, num_classes)
+
+
+    model = get_model(num_classes)
 
     if args.test:
         model.load_weights(args.weights_path)
