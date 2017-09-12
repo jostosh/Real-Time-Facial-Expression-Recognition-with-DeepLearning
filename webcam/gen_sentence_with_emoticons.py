@@ -7,7 +7,7 @@ import numpy as np
 
 import face_detection_utilities as fdu
 
-import model.myVGG as vgg
+import train.myVGG as vgg
 import speech_recognition as sr
 
 windowsName = 'Preview Screen'
@@ -18,7 +18,7 @@ args = parser.parse_args()
 FACE_SHAPE = (48, 48)
 
 model = vgg.VGG_16('my_model_weights_83.h5')
-#model = vgg.VGG_16()
+#train = vgg.VGG_16()
 
 emo     = ['Angry', 'Fear', 'Happy',
            'Sad', 'Surprise', 'Neutral']
