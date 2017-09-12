@@ -99,4 +99,4 @@ def preprocess(img, faceCoordinates, face_shape=(48, 48)):
     face_scaled = cv2.resize(face, face_shape)
     face_gray = cv2.cvtColor(face_scaled, cv2.COLOR_BGR2GRAY)
     
-    return face_gray
+    return face_gray.reshape(face_shape + (1,))

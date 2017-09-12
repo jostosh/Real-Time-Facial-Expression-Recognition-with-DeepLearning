@@ -1,5 +1,5 @@
 
-python model/model_training.py \
+python train/model_training.py \
     --weights_path model/age.h5 \
     --lr 0.001 \
     --model adience \
