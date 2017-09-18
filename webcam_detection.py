@@ -13,7 +13,6 @@ import colorlover as cl
 from train.labeldefs import *
 import itertools
 
-
 def nothing(x):
     pass
 
@@ -24,13 +23,13 @@ colors = cl.to_numeric(cl.scales['12']['qual']['Set3'])
 FACE_SHAPE = (48, 48)
 
 
-class MindMirror:
+
+class IntelligentMirror:
 
     def __init__(self, wname='Big Data Expo Demo', mode='dlib'):
         self.age, self.gender, self.emotion = self.load_models()
 
         self.face_detector = dlib.get_frontal_face_detector()
-        #self.shape_predictor = dlib.shape_predictor('model/shape_predictor.dat')
 
         self.camera = self.getCameraStreaming()
 
@@ -47,20 +46,15 @@ class MindMirror:
 
         for count in itertools.count():
             flag, frame = self.camera.read()
-            frame = frame[:, ::-1, :]
+            frame = frame[:, ::-1, :] # Do mirroring
             output = np.copy(frame)
 
-            # 68
-            #
-            bb_fac = np.sqrt(cv2.getTrackbarPos('boxsize', self.wname) / 50.0)
-            #bb_fac = min(max(0.5, bb_fac), 2.0)
-            #yoffset = cv2.getTrackbarPos('yoffset', self.wname) / 100.0
 
             try:
                 bounding_boxes = fdu.get_bounding_boxes(frame, mode=self.mode, fac=np.sqrt(68 / 50), yoffset=0.04)
                 bounding_boxes = sorted(bounding_boxes, key=lambda bb: bb[0])
 
-                if len(bounding_boxes) != nfaces and count % 5 == 0:
+                if len(bounding_boxes) > 0 and (len(bounding_boxes) != nfaces or count % 5 == 0):
 
                     adience_pp_crops = np.stack(
                         [self.adience_preprocess(frame, bb) for bb in bounding_boxes]
@@ -72,6 +66,9 @@ class MindMirror:
                     emotions_result = self.emotion.predict(emotion_pp_crops)
                     age_result = self.age.predict(adience_pp_crops)
                     gender_result = self.gender.predict(adience_pp_crops)
+
+                if len(bounding_boxes) != nfaces:
+                    nfaces = len(bounding_boxes)
 
                 self.display_label(output, emotions_result, colors, bounding_boxes, 0, 1, emotion_l_to_c)
                 self.display_label(output, age_result, colors, bounding_boxes, 2, 1, age_l_to_c, prefix='Age: ')
@@ -125,9 +122,8 @@ class MindMirror:
 
     def setup_window(self):
         cv2.startWindowThread()
-        cv2.namedWindow(self.wname)
-        #cv2.createTrackbar('yoffset', self.wname, 0, 100, nothing)
-        #cv2.createTrackbar('boxsize', self.wname, 0, 400, nothing)
+        cv2.namedWindow(self.wname, cv2.WND_PROP_FULLSCREEN)
+        cv2.setWindowProperty(self.wname, cv2.WND_PROP_FULLSCREEN, cv2.WND_PROP_FULLSCREEN)
 
     @staticmethod
     def adience_preprocess(frame, bb):
@@ -141,6 +137,6 @@ if __name__ == '__main__':
     parser.add_argument('--mode', default='dlib', choices=['cascade', 'dlib'])
 
     args = parser.parse_args()
-    mind_mirror = MindMirror()
+    mind_mirror = IntelligentMirror()
 
     mind_mirror.run()
