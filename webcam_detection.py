@@ -176,9 +176,24 @@ class IntelligentMirror:
         dy = h // 20
 
         def clipped_crop(frame, y0, y1, x0, x1):
+            crop_w = x1 - x0
+            crop_h = y1 - y0
             h = frame.shape[0]
             w = frame.shape[1]
+
+            y0 = max(y0, 0)
+            y1 = y0 + crop_h
+            y1 = min(y1, h)
+            y0 = y1 - crop_h
+
+            x0 = max(x0, 0)
+            x1 = x0 + crop_w
+            x1 = min(y1, w)
+            x0 = x1 - crop_w
+
             return frame[max(y0, 0):min(y1, h), max(x0, 0):min(x1, w)]
+
+        
         crops = np.stack([
             clipped_crop(frame, y0 - dy, y1 - dy, x0 - dx, x1 - dx),
             clipped_crop(frame, y0 + dy, y1 + dy, x0 - dx, x1 - dx),
