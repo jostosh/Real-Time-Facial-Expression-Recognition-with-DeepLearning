@@ -84,7 +84,7 @@ def main():
 
     #train.save_weights(args.weights_path)
 
-    model.save(args.weights_path)
+    model.save(args.weights_path, overwrite=True)
 
     scores = model.evaluate(X_train, y_train, verbose=0)
     print ("Train loss : %.3f" % scores[0])

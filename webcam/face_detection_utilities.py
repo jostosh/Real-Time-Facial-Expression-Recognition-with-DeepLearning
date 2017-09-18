@@ -10,7 +10,6 @@ def nothing(x):
 
 detector = dlib.get_frontal_face_detector()
 
-
 CASCADE_PATH = "haarcascade_frontalface_default.xml"
 
 RESIZE_SCALE = 3
@@ -30,7 +29,7 @@ FACIAL_LANDMARKS_IDXS = OrderedDict([
 ])
 
 
-def rect_to_bb(rect, fac, yoffset):
+def rect_to_bb(rect, fac, yoffset, resize_fac):
     # take a bounding predicted by dlib and convert it
     # to the format (x, y, w, h) as we would normally do
     # with OpenCV
@@ -54,10 +53,10 @@ def rect_to_bb(rect, fac, yoffset):
     x2 = x + wnew
 
     # return a tuple of (x, y, w, h)
-    return (int(x * 2), int(y * 2), int(x2 * 2), int(y2 * 2))
+    return (int(x * resize_fac), int(y * resize_fac), int(x2 * resize_fac), int(y2 * resize_fac))
 
 
-def get_bounding_boxes(image, mode='cascade', fac=20, yoffset=1.0):
+def get_bounding_boxes(image, mode='cascade', fac=20, yoffset=1.0, resize_fac=2):
 
     if mode == 'cascade':
         cascade = cv2.CascadeClassifier(CASCADE_PATH)
@@ -77,9 +76,9 @@ def get_bounding_boxes(image, mode='cascade', fac=20, yoffset=1.0):
         return bbs
 
     h, w = image.shape[:2]
-    subim = cv2.resize(image, (w // 2, h // 2))
+    subim = cv2.resize(image, (w // resize_fac, h // resize_fac))
     rectangles = detector(subim, 1)
-    return [rect_to_bb(r, fac, yoffset) for r in rectangles]
+    return [rect_to_bb(r, fac, yoffset, resize_fac) for r in rectangles]
 
 
 def drawFace(img, faceCoordinates):
