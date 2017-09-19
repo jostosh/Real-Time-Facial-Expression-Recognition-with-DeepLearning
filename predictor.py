@@ -35,6 +35,7 @@ class Predictor:
         x = np.stack([cv2.resize(im, self.size) for im in x])
         if self.grayscale:
             x = np.stack([cv2.cvtColor(im, cv2.COLOR_BGR2GRAY) for im in x])
+            x = np.expand_dims(x, axis=3)
         return x
 
     def oversample(self, frame, bb, offset_fac=20):
@@ -48,29 +49,32 @@ class Predictor:
         dx = w // offset_fac
         dy = h // offset_fac
         crops = np.stack([
-            self._clipped_crop(frame, y0 - dy, y1 - dy, x0 - dx, x1 - dx),
-            self._clipped_crop(frame, y0 + dy, y1 + dy, x0 - dx, x1 - dx),
-            self._clipped_crop(frame, y0 - dy, y1 - dy, x0 + dx, x1 + dx),
-            self._clipped_crop(frame, y0 + dy, y1 + dy, x0 + dx, x1 + dx),
-            self._clipped_crop(frame, y0, y1, x0, x1)
+            self._clipped_crop(frame, y0 - dy, y1 - dy, x0 - dx, x1 - dx),  # top left
+            self._clipped_crop(frame, y0 + dy, y1 + dy, x0 - dx, x1 - dx),  # bottom left
+            self._clipped_crop(frame, y0 - dy, y1 - dy, x0 + dx, x1 + dx),  # top right
+            self._clipped_crop(frame, y0 + dy, y1 + dy, x0 + dx, x1 + dx),  # bottom right
+            self._clipped_crop(frame, y0, y1, x0, x1)                       # center
         ])
-        return np.concatenate([crops, crops[:, ::-1, :]])
+        return np.concatenate([crops, crops[:, :, ::-1]])  # mirror
 
     @staticmethod
     def _clipped_crop(frame, y0, y1, x0, x1):
+        """ Creates a clipped crop, where we make sure we do not exceed the boundaries of the frame """
         crop_w = x1 - x0
         crop_h = y1 - y0
         h = frame.shape[0]
         w = frame.shape[1]
 
+        # Check for y boundary
         y0 = max(y0, 0)
         y1 = y0 + crop_h
         y1 = min(y1, h)
         y0 = y1 - crop_h
 
+        # Check for x boundary
         x0 = max(x0, 0)
         x1 = x0 + crop_w
-        x1 = min(y1, w)
+        x1 = min(x1, w)
         x0 = x1 - crop_w
 
         return frame[max(y0, 0):min(y1, h), max(x0, 0):min(x1, w)]
