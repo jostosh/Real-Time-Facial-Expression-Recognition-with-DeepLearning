@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
 source activate bde
-python webcam_detection.py --fullscreen --double
+python demo.py --fullscreen --double $*
