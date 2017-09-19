@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
 source activate bde
-python demo.py --fullscreen --double $*
+python demo.py --fullscreen --dual $*

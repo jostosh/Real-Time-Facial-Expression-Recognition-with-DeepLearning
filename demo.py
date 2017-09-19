@@ -18,18 +18,18 @@ BOTTOM_RIGHT = (2, 3)
 
 class IntelligentMirror:
 
-    def __init__(self, cam_id, w, h, fps, fullscreen, double, wname='Big Data Expo Demo', mode='dlib'):
-        self.age_predictor, self.gender_predictor, self.emotion_predictor = self.load_models()
+    def __init__(self, cam_id, w, h, fps, fullscreen, dual, wname='Big Data Expo Demo'):
+        """ Intelligent mirror """
+        self.age_predictor, self.gender_predictor, self.emotion_predictor = self.load_predictors()
         self.camera = self.get_camera_streaming(cam_id, w, h, fps)
-
-        self.mode = mode
         self.wname = wname
-        self.setup_window(fullscreen, double)
+        self.setup_window(fullscreen, dual)
 
-        self.dual_display = double
+        self.dual_display = dual
         self.colors = cl.to_numeric(cl.scales['12']['qual']['Set3'])
 
     def run(self):
+        """ Implements main funcionality of the demo by analyzing frames repetitively. """
         n_previous_bounding_boxes = 0
         # Initialize the names and confidences with empty lists
         emotion_names, emotion_confidences, age_names, age_confidences, gender_names, gender_confidences = 6 * [[]]
@@ -41,7 +41,7 @@ class IntelligentMirror:
             out = frame.copy()
             try:
                 if count % 2 == 0:
-                    bounding_boxes = get_bounding_boxes(frame, mode=self.mode, fac=np.sqrt(68 / 50), yoffset=0.04)
+                    bounding_boxes = get_bounding_boxes(frame, fac=np.sqrt(68 / 50), yoffset=0.04)
 
                 # Bounding boxes not always in same order, bb == (left, right, top, bottom)
                 bounding_boxes = sorted(bounding_boxes, key=lambda bb: bb[0])
@@ -62,9 +62,9 @@ class IntelligentMirror:
                 n_previous_bounding_boxes = n_bounding_boxes
 
                 # Display the name of the classes
-                self.display_label(out, emotion_names, emotion_confidences, bounding_boxes, TOP_LEFT)
-                self.display_label(out, age_names, age_confidences, bounding_boxes, TOP_RIGHT, prefix='Age: ')
-                self.display_label(out, gender_names, gender_confidences, bounding_boxes, BOTTOM_RIGHT)
+                self.display_labels(out, emotion_names, emotion_confidences, bounding_boxes, TOP_LEFT)
+                self.display_labels(out, age_names, age_confidences, bounding_boxes, TOP_RIGHT, prefix='Age: ')
+                self.display_labels(out, gender_names, gender_confidences, bounding_boxes, BOTTOM_RIGHT)
 
                 # Draw the bounding boxes
                 self.draw_bounding_boxes(bounding_boxes, out)
@@ -83,10 +83,12 @@ class IntelligentMirror:
                 break
 
     def read_camera(self):
+        """ Reads in mirrored camera frame """
         _, frame = self.camera.read()
         return self.mirror(frame)
 
     def draw_bounding_boxes(self, bounding_boxes, output):
+        """ Draws bounding boxes around faces """
         for i, bb in enumerate(bounding_boxes):
 
             if bb[2] > output.shape[1] or bb[3] > output.shape[0] or bb[0] < 0 or bb[1] < 0:
@@ -96,8 +98,10 @@ class IntelligentMirror:
                 thickness=2
             )
 
-    def display_label(self, out, names, confidences, bbs, pos, prefix=''):
-        i1, i2 = pos
+    def display_labels(self, out, names, confidences, bbs, loc, prefix=''):
+        """ Displays label names and confidences for all bounding boxes """
+        # loc refers to the location relative to the bounding box, see top of the file
+        i1, i2 = loc
         font = cv2.QT_FONT_NORMAL
         for i, (label, confidence, bb) in enumerate(zip(names, confidences, bbs)):
             pos = (bb[i1], bb[i2])
@@ -108,6 +112,7 @@ class IntelligentMirror:
 
     @staticmethod
     def get_camera_streaming(cam_id, w, h, fps):
+        """ Sets up capture with width, height and frames per second parameters """
         capture = cv2.VideoCapture(cam_id)
         capture.set(cv2.CAP_PROP_FRAME_WIDTH, w)
         capture.set(cv2.CAP_PROP_FRAME_HEIGHT, h)
@@ -117,18 +122,24 @@ class IntelligentMirror:
             sys.exit(1)
         return capture
 
-    def load_models(self):
+    def load_predictors(self):
+        """ Loads a Predictor for age, gender and emotion which are already trained """
+        # Load weights
         age_model = load_model('model/age.h5')
         gender_model = load_model('model/gender.h5')
         emotion_model = load_model('model/emotion.h5')
 
+        # Instantiate predictors
         age_predictor = Predictor(age_l_to_c, age_model, (227, 227), grayscale=False)
         gender_predictor = Predictor(gender_l_to_c, gender_model, (227, 227), grayscale=False)
         emotion_predictor = Predictor(emotion_l_to_c, emotion_model, (48, 48), grayscale=True)
-
         return age_predictor, gender_predictor, emotion_predictor
 
-    def setup_window(self, fullscreen, double):
+    def setup_window(self, fullscreen, dual):
+        """
+        Sets up window. If fullscreen, no exit bar is displayed. If double, additional smaller screen is drawn on the
+        left monitor while the fullscreen display is drawn on the right monitor
+        """
         cv2.startWindowThread()
         if fullscreen:
             cv2.namedWindow(self.wname, cv2.WINDOW_NORMAL)
@@ -137,29 +148,29 @@ class IntelligentMirror:
         cv2.namedWindow(self.wname)
         cv2.setWindowProperty(self.wname, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
-        if double:
+        if dual:
+            # Move is to make sure it's on the right monitor
             cv2.moveWindow(self.wname, 1920, 0)
             cv2.namedWindow(self.wname + ' Small View')
             cv2.resizeWindow(self.wname + ' Small View', 960, 540)
 
     @staticmethod
-    def mirror(frame):
-        return frame[:, ::-1]
+    def mirror(img):
+        """ Mirrors an image from left to right """
+        return img[:, ::-1]
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='A live emotion recognition from webcam')
-    parser.add_argument('--detector', default='dlib', choices=['dlib', 'cascade'])
     parser.add_argument('--cam_id', default=1, type=int, choices=[0, 1], help='Camera ID, 0 = built-in, 1 = external')
     parser.add_argument('--fps', type=int, default=15, help='Frames per second')
     parser.add_argument('--width', type=int, default=1920, help='Capture and display width')
     parser.add_argument('--height', type=int, default=1080, help='Capture and display height')
     parser.add_argument('--fullscreen', action='store_true', dest='fullscreen',
                         help='If provided, displays in fullscreen')
-    parser.add_argument('--double', action='store_true', dest='double',
+    parser.add_argument('--dual', action='store_true', dest='dual',
                         help='If provided creates a double display, one for code view and the other for fullscreen'
                              'mirror.')
     args = parser.parse_args()
-    mind_mirror = IntelligentMirror(args.cam_id, args.width, args.height, args.fps, args.fullscreen, args.double,
-                                    mode=args.detector)
 
+    mind_mirror = IntelligentMirror(args.cam_id, args.width, args.height, args.fps, args.fullscreen, args.dual)
     mind_mirror.run()
