@@ -1,33 +1,23 @@
 import argparse
-import sys, os
-sys.path.append("../")
-
+import sys
+sys.path.append("./")
 import cv2
 import numpy as np
-
 import webcam.face_detection_utilities as fdu
-
 import dlib
 from keras.models import load_model
 import colorlover as cl
 from train.labeldefs import *
 import itertools
 
-def nothing(x):
-    pass
-
-
 colors = cl.to_numeric(cl.scales['12']['qual']['Set3'])
-
-
 FACE_SHAPE = (48, 48)
-
 
 
 class IntelligentMirror:
 
     def __init__(self, cam_id, w, h, fps, fullscreen, double, display_faces, wname='Big Data Expo Demo', mode='dlib'):
-        self.age, self.gender, self.emotion = self.load_models()
+        self.age, self.gender, self.emotion_model = self.load_models()
 
         self.face_detector = dlib.get_frontal_face_detector()
 
@@ -41,26 +31,29 @@ class IntelligentMirror:
         self.display_faces = display_faces
 
     def run(self):
-        nfaces = 0
+        n_previous_bounding_boxes = 0
 
         emotions_result = []
         age_result = []
         gender_result = []
 
         for count in itertools.count():
-            flag, frame = self.camera.read()
-            frame = frame[:, ::-1, :] # Do mirroring
-            output = np.copy(frame)
 
+            flag, frame = self.camera.read()
+            frame = frame[:, ::-1, :]  # Do mirroring
+            output = np.copy(frame)
 
             try:
                 if count % 2 == 0:
                     bounding_boxes = fdu.get_bounding_boxes(frame, mode=self.mode, fac=np.sqrt(68 / 50), yoffset=0.04)
+
+                # Bounding boxes not always in same order, bb == (left, right, top, bottom)
                 bounding_boxes = sorted(bounding_boxes, key=lambda bb: bb[0])
                 n_det = len(bounding_boxes)
 
-                if n_det > 0 and (n_det != nfaces or count % 5 == 0):
+                if n_det > 0 and (n_det != n_previous_bounding_boxes or count % 5 == 0):
 
+                    # Preprocess (and oversampling)
                     adience_pp_crops = np.concatenate(
                         [self.adience_preprocess(frame, bb) for bb in bounding_boxes]
                     )
@@ -68,9 +61,12 @@ class IntelligentMirror:
                         [self.bde_preprocess(frame, bb) for bb in bounding_boxes]
                     )
 
-                    emotions_result = self.emotion.predict(emotion_pp_crops)
+                    # Prediction
+                    emotions_result = self.emotion_model.predict(emotion_pp_crops)
                     age_result = self.age.predict(adience_pp_crops)
                     gender_result = self.gender.predict(adience_pp_crops)
+
+                    # Combine oversampled results, age_result.shape = [n_faces * 10, n_classes]
                     age_result = np.reshape(age_result, (n_det, 10, len(age_l_to_c))).mean(axis=1)
                     gender_result = np.reshape(gender_result, (n_det, 10, len(gender_l_to_c))).mean(axis=1)
                     emotions_result = np.reshape(emotions_result, (n_det, 10, len(emotion_l_to_c))).mean(axis=1)
@@ -79,9 +75,12 @@ class IntelligentMirror:
                         [cv2.imshow('face{}'.format(i), adience_pp_crops[i]) for i in
                          range(self.display_faces)]
 
-                if len(bounding_boxes) != nfaces:
-                    nfaces = len(bounding_boxes)
+                if len(bounding_boxes) != n_previous_bounding_boxes:
+                    n_previous_bounding_boxes = len(bounding_boxes)
 
+                top_left = (0, 1)
+                top_right = (2, 1)
+                bottom_right = (2, 3)
                 self.display_label(output, emotions_result, colors, bounding_boxes, 0, 1, emotion_l_to_c)
                 self.display_label(output, age_result, colors, bounding_boxes, 2, 1, age_l_to_c, prefix='Age: ')
                 self.display_label(output, gender_result, colors, bounding_boxes, 2, 3, gender_l_to_c)
@@ -167,7 +166,6 @@ class IntelligentMirror:
             cv2.cvtColor(cv2.resize(im, face_shape), cv2.COLOR_BGR2GRAY) for im in oversampled
         ]), axis=3)
 
-
     def oversample(self, frame, bb):
         x0, y0, x1, y1 = bb
         h = bb[3] - bb[1]
@@ -188,11 +186,10 @@ class IntelligentMirror:
 
             x0 = max(x0, 0)
             x1 = x0 + crop_w
-            x1 = min(y1, w)
+            x1 = min(x1, w)
             x0 = x1 - crop_w
 
             return frame[max(y0, 0):min(y1, h), max(x0, 0):min(x1, w)]
-
         
         crops = np.stack([
             clipped_crop(frame, y0 - dy, y1 - dy, x0 - dx, x1 - dx),
