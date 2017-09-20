@@ -51,11 +51,11 @@ class IntelligentMirror:
                 # (we have a different number of bounding boxes than before OR we have reached a count of modulo 5)
                 if n_bounding_boxes > 0 and (n_bounding_boxes != n_previous_bounding_boxes or count % 5 == 0):
                     emotion_names, emotion_confidences = self.emotion_predictor.predict(
-                        bounding_boxes, frame, oversample=True
+                        bounding_boxes, frame, oversample=False
                     )
-                    age_names, age_confidences = self.age_predictor.predict(bounding_boxes, frame, oversample=True)
+                    age_names, age_confidences = self.age_predictor.predict(bounding_boxes, frame, oversample=False)
                     gender_names, gender_confidences = self.gender_predictor.predict(
-                        bounding_boxes, frame, oversample=True
+                        bounding_boxes, frame, oversample=False
                     )
 
                 # Update the number of bounding boxes
