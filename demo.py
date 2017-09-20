@@ -41,7 +41,7 @@ class IntelligentMirror:
             out = frame.copy()
             try:
                 if count % 2 == 0:
-                    bounding_boxes = get_bounding_boxes(frame, fac=np.sqrt(68 / 50), yoffset=0.04)
+                    bounding_boxes = get_bounding_boxes(frame, fac=1.2, yoffset=0.04)
 
                 # Bounding boxes not always in same order, bb == (left, right, top, bottom)
                 bounding_boxes = sorted(bounding_boxes, key=lambda bb: bb[0])
@@ -51,11 +51,11 @@ class IntelligentMirror:
                 # (we have a different number of bounding boxes than before OR we have reached a count of modulo 5)
                 if n_bounding_boxes > 0 and (n_bounding_boxes != n_previous_bounding_boxes or count % 5 == 0):
                     emotion_names, emotion_confidences = self.emotion_predictor.predict(
-                        bounding_boxes, frame, oversample=False
+                        bounding_boxes, frame, oversample=True
                     )
-                    age_names, age_confidences = self.age_predictor.predict(bounding_boxes, frame, oversample=False)
+                    age_names, age_confidences = self.age_predictor.predict(bounding_boxes, frame, oversample=True)
                     gender_names, gender_confidences = self.gender_predictor.predict(
-                        bounding_boxes, frame, oversample=False
+                        bounding_boxes, frame, oversample=True
                     )
 
                 # Update the number of bounding boxes

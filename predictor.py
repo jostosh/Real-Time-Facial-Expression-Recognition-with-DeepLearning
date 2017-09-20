@@ -22,6 +22,7 @@ class Predictor:
         if oversample:
             n_faces = len(x) // N_OVERSAMPLED
             predictions = np.reshape(predictions, (n_faces, N_OVERSAMPLED, len(self.class_idx_to_name))).mean(axis=1)
+
         indices = np.argmax(predictions, axis=1)
         return [self.class_idx_to_name[i] for i in indices], np.max(predictions, axis=1)
 
@@ -31,12 +32,11 @@ class Predictor:
             x = np.concatenate([self.oversample(im, bb) for bb in bbs])
         else:
             x = np.stack([cv2.resize(self._clipped_crop(im, bb[1], bb[3], bb[0], bb[2]), self.size) for bb in bbs])
-
-        x = np.stack([cv2.resize(im, self.size) for im in x])
         if self.grayscale:
             x = np.stack([cv2.cvtColor(im, cv2.COLOR_BGR2GRAY) for im in x])
             x = np.expand_dims(x, axis=3)
-        return x
+
+        return x / 255.0  # This is VERY IMPORTANT
 
     def oversample(self, frame, bb, offset_fac=20):
         """
@@ -49,15 +49,13 @@ class Predictor:
         dx = w // offset_fac
         dy = h // offset_fac
 
-
-
-        crops = np.stack([
+        crops = np.stack([cv2.resize(im, self.size) for im in [
             self._clipped_crop(frame, y0 - dy, y1 - dy, x0 - dx, x1 - dx),  # top left
             self._clipped_crop(frame, y0 + dy, y1 + dy, x0 - dx, x1 - dx),  # bottom left
             self._clipped_crop(frame, y0 - dy, y1 - dy, x0 + dx, x1 + dx),  # top right
             self._clipped_crop(frame, y0 + dy, y1 + dy, x0 + dx, x1 + dx),  # bottom right
             self._clipped_crop(frame, y0, y1, x0, x1)                       # center
-        ])
+        ]])
         return np.concatenate([crops, crops[:, :, ::-1]])  # mirror
 
     @staticmethod
