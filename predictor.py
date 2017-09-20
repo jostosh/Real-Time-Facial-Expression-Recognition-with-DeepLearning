@@ -27,20 +27,24 @@ class Predictor:
         return [self.class_idx_to_name[i] for i in indices], np.max(predictions, axis=1)
 
     def _preprocess(self, im, bbs, oversample):
-        """ Preprocessing consists of oversampling, resizing and color conversion """
+        """ Pre-processing consists of oversampling, resizing and color conversion """
         if oversample:
             x = np.concatenate([self.oversample(im, bb) for bb in bbs])
         else:
             x = np.stack([cv2.resize(self._clipped_crop(im, bb[1], bb[3], bb[0], bb[2]), self.size) for bb in bbs])
         if self.grayscale:
+            # From BGR to gray
             x = np.stack([cv2.cvtColor(im, cv2.COLOR_BGR2GRAY) for im in x])
             x = np.expand_dims(x, axis=3)
+        else:
+            # BGR to RGB
+            x = x[:, :, :, ::-1]
 
         return x / 255.0  # This is VERY IMPORTANT
 
     def oversample(self, frame, bb, offset_fac=20):
         """
-        Samples a crop by also including mirrored versions and corner crops with a 5 % offset (factor 1/20)
+        Samples a crop by also including mirrored versions and corner crops with a 5% offset (factor 1/20)
         This means the output will be of length 10 * len(bb)
         """
         x0, y0, x1, y1 = bb
@@ -56,7 +60,7 @@ class Predictor:
             self._clipped_crop(frame, y0 + dy, y1 + dy, x0 + dx, x1 + dx),  # bottom right
             self._clipped_crop(frame, y0, y1, x0, x1)                       # center
         ]])
-        return np.concatenate([crops, crops[:, :, ::-1]])  # mirror
+        return np.concatenate([crops, crops[:, :, ::-1, :]])  # mirror
 
     @staticmethod
     def _clipped_crop(frame, y0, y1, x0, x1):
