@@ -29,7 +29,7 @@ gender_l_to_c = {
 emotion_l_to_c = {
     0: 'Neutral',
     1: 'Angry',
-    2: 'Fear',
+    2: 'Energy',
     3: 'Happy',
     4: 'Sad',
     5: 'Surprise'
