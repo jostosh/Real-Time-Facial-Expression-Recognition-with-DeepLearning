@@ -30,7 +30,7 @@ class Predictor:
         if oversample:
             x = np.concatenate([self.oversample(im, bb) for bb in bbs])
         else:
-            x = np.stack([self._clipped_crop(im, bb[1], bb[3], bb[0], bb[2]) for bb in bbs])
+            x = np.stack([cv2.resize(self._clipped_crop(im, bb[1], bb[3], bb[0], bb[2]), self.size) for bb in bbs])
 
         x = np.stack([cv2.resize(im, self.size) for im in x])
         if self.grayscale:
@@ -48,6 +48,9 @@ class Predictor:
         w = bb[2] - bb[0]
         dx = w // offset_fac
         dy = h // offset_fac
+
+
+
         crops = np.stack([
             self._clipped_crop(frame, y0 - dy, y1 - dy, x0 - dx, x1 - dx),  # top left
             self._clipped_crop(frame, y0 + dy, y1 + dy, x0 - dx, x1 - dx),  # bottom left
